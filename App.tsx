@@ -9,16 +9,17 @@ import {
   View,
 } from 'react-native';
 
-// npx expo install @expo/ui
-import { Picker } from '@expo/ui/community/picker';
+// FIX 11: use the standard React Native picker, which works in Expo Go
+import { Picker } from '@react-native-picker/picker';
 
+// FIX 1: year and rating are numbers, because handleSave stores Number(...)
 type Album = {
   id: string;
   title: string;
   artist: string;
-  year: string;
+  year: number;
   genre: string;
-  rating: string;
+  rating: number;
 };
 
 const genres: string[] = [
@@ -60,8 +61,9 @@ export default function App() {
       return false;
     }
 
+    // FIX 2: changed && to || so a title that is too short OR too long is rejected
     if (
-      title.trim().length < MIN_TEXT_LENGTH &&
+      title.trim().length < MIN_TEXT_LENGTH ||
       title.trim().length > MAX_TITLE_LENGTH
     ) {
       Alert.alert(
@@ -76,8 +78,9 @@ export default function App() {
       return false;
     }
 
+    // FIX 3: changed && to || for the artist length check
     if (
-      artist.trim().length < MIN_TEXT_LENGTH &&
+      artist.trim().length < MIN_TEXT_LENGTH ||
       artist.trim().length > MAX_ARTIST_LENGTH
     ) {
       Alert.alert(
@@ -101,7 +104,8 @@ export default function App() {
 
     const currentYear = new Date().getFullYear();
 
-    if (numericYear < MIN_YEAR) {
+    // FIX 4: added the missing upper limit so future years are rejected
+    if (numericYear < MIN_YEAR || numericYear > currentYear) {
       Alert.alert(
         'Validation Error',
         `Album year must be between ${MIN_YEAR} and ${currentYear}.`
@@ -126,7 +130,8 @@ export default function App() {
       return false;
     }
 
-    if (numericRating < 1) {
+    // FIX 5: added the missing upper limit so ratings above MAX_RATING are rejected
+    if (numericRating < 1 || numericRating > MAX_RATING) {
       Alert.alert(
         'Validation Error',
         `Rating must be between 1 and ${MAX_RATING}.`
@@ -142,11 +147,6 @@ export default function App() {
       return;
     }
 
-    // Create a temporary Album object using the information
-    // entered by the user.
-    // Check the Album type declaration above carefully before
-    // completing this object.
-
     const temporaryAlbum: Album = {
       id: Date.now().toString(),
       title: title.trim(),
@@ -156,7 +156,8 @@ export default function App() {
       rating: Number(rating),
     };
 
-    setAlbums([temporaryAlbum]);
+    // FIX 6: keep the existing albums and append the new one
+    setAlbums((currentAlbums) => [...currentAlbums, temporaryAlbum]);
 
     setTitle('');
     setArtist('');
@@ -166,8 +167,9 @@ export default function App() {
   };
 
   const handleDelete = (id: string) => {
+    // FIX 7: changed === to !== so every album except the selected one is kept
     setAlbums((currentAlbums) =>
-      currentAlbums.filter((album) => album.id === id)
+      currentAlbums.filter((album) => album.id !== id)
     );
   };
 
@@ -220,15 +222,17 @@ export default function App() {
       />
 
       <Text style={styles.label}>Genre</Text>
+      {/* FIX 8: selectedValue is bound to genre instead of title */}
       <Picker
-        selectedValue={title}
-        onValueChange={(value) => setGenre(value)}
+        selectedValue={genre}
+        onValueChange={(value: string) => setGenre(value)}
       >
         <Picker.Item label="Select a genre..." value="" />
 
+        {/* FIX 9: each item now uses its own value instead of the genre state */}
         {genres.map((item) => (
-	  <Picker.Item key={item} label={item} value={genre} />
-	))}
+          <Picker.Item key={item} label={item} value={item} />
+        ))}
       </Picker>
 
       <Text style={styles.label}>Rating</Text>
@@ -248,9 +252,10 @@ export default function App() {
         My Favourite Albums ({albums.length})
       </Text>
 
+      {/* FIX 10: keyExtractor uses the unique id instead of the title */}
       <FlatList
         data={albums}
-        keyExtractor={(item) => item.title}
+        keyExtractor={(item) => item.id}
         renderItem={renderAlbum}
         ListEmptyComponent={
           <Text style={styles.emptyMessage}>
